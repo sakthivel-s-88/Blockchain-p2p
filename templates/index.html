@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Blockchain Network</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #f2f2f2;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+    .section {
+      background: white;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+    }
+    select, input, button {
+      padding: 10px;
+      width: 100%;
+      margin-top: 10px;
+    }
+    pre {
+      background: #333;
+      color: #0f0;
+      padding: 10px;
+      overflow: auto;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Blockchain Node</h1>
+
+    <div class="section">
+      <h2>Register Peer</h2>
+      <form id="registerForm">
+        <input type="text" id="peerName" placeholder="Peer name (e.g., Node-A)" required />
+        <input type="text" id="peerUrl" placeholder="Peer URL (e.g., http://localhost:8001)" required />
+        <button type="submit">Register</button>
+      </form>
+      <p id="peerStatus"></p>
+    </div>
+
+    <div class="section">
+      <h2>Send Transaction</h2>
+      <form id="txForm">
+        <select id="sender"></select>
+        <select id="recipient"></select>
+        <input type="number" id="amount" placeholder="Amount" min="1" required />
+        <button type="submit">Send</button>
+      </form>
+      <p id="txStatus"></p>
+    </div>
+
+    <div class="section">
+      <h2>Mine New Block</h2>
+      <button onclick="mineBlock()">Mine</button>
+      <p id="mineStatus"></p>
+    </div>
+
+    <div class="section">
+      <h2>Sync Chain</h2>
+      <button onclick="syncChain()">Sync Now</button>
+      <pre id="syncOutput">Waiting...</pre>
+    </div>
+
+    <div class="section">
+      <h2>Blockchain</h2>
+      <pre id="chainOutput">Loading chain...</pre>
+    </div>
+  </div>
+
+  <script>
+    const peers = {{ peers | tojson }};
+    const API_BASE = '/api';
+
+    function populatePeers() {
+      const senderSel = document.getElementById("sender");
+      const recipientSel = document.getElementById("recipient");
+      [senderSel, recipientSel].forEach(sel => sel.innerHTML = '');
+
+      Object.keys(peers).forEach(name => {
+        let option = new Option(name, name);
+        senderSel.add(option.cloneNode(true));
+        recipientSel.add(option.cloneNode(true));
+      });
+    }
+
+    document.getElementById("registerForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const name = document.getElementById("peerName").value;
+      const url = document.getElementById("peerUrl").value;
+      fetch(`${API_BASE}/register_peer`, {
+        method: "POST",
+        body: new URLSearchParams({ name, url })
+      }).then(res => res.json()).then(data => {
+        document.getElementById("peerStatus").innerText = data.message;
+        location.reload();
+      });
+    });
+
+    document.getElementById("txForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const sender = document.getElementById("sender").value;
+      const recipient = document.getElementById("recipient").value;
+      const amount = document.getElementById("amount").value;
+
+      fetch(`${API_BASE}/send`, {
+        method: "POST",
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sender, recipient, amount })
+      }).then(res => res.json()).then(data => {
+        document.getElementById("txStatus").innerText = data.message;
+        updateChain();
+      });
+    });
+
+    function mineBlock() {
+      fetch(`${API_BASE}/mine`, { method: "POST" })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("mineStatus").innerText = data.message;
+          updateChain();
+        });
+    }
+
+    function syncChain() {
+      fetch(`${API_BASE}/sync_chains`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("syncOutput").textContent = JSON.stringify(data, null, 2);
+          updateChain();
+        });
+    }
+
+    function updateChain() {
+      fetch(`${API_BASE}/chain`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("chainOutput").textContent = JSON.stringify(data, null, 2);
+        });
+    }
+
+    updateChain();
+    populatePeers();
+  </script>
+</body>
+</html>
